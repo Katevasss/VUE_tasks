@@ -1,5 +1,5 @@
 <script setup>
-import VolunteerTable from './components/VolunteerTable.vue'
+import VolunteerTable from './views/VolunteerTable.vue'
 </script>
 
 <template>

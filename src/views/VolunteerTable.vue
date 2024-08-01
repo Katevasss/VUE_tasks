@@ -12,35 +12,41 @@
         Показать только несовершеннолетних
       </label>
     </div>
+    <CustomTable :columns="columns" :filteredVolunteers="filteredVolunteers">
+      <template #name="{ volunteer }">
+        {{ volunteer.first_name }} {{ volunteer.last_name }}
+      </template>
+      <template #medicalContraindications="{ volunteer }">
+        {{ volunteer.medicalContraindications.join(', ') }}
+      </template>
+      <template #allows="{ volunteer }">
+        <div v-if="volunteer.age >= 18">Не требуется</div>
+        <div v-else>
+          <CustomButton v-if="!isConfirmed(volunteer)" @click="showModal(volunteer)"
+            >Подтвердить</CustomButton
+          >
+          <div v-else>Получено</div>
+        </div>
+      </template>
+    </CustomTable>
 
-    <table>
-      <thead>
-        <tr>
-          <th>ФИО</th>
-          <th>Возраст</th>
-          <th>Направление</th>
-          <th>Руководитель</th>
-          <th>Медицинские противопоказания</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="volunteer in filteredVolunteers"
-          :key="volunteer.last_name + volunteer.first_name"
-        >
-          <td>{{ volunteer.first_name }} {{ volunteer.last_name }}</td>
-          <td>{{ volunteer.age }}</td>
-          <td>{{ volunteer.directions }}</td>
-          <td>{{ volunteer.leader }}</td>
-          <td>{{ volunteer.medicalContraindications.join(', ') }}</td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-if="modalVisible" class="modal" @click.self="closeModal">
+      <div class="modalContent">
+        <button class="closeButton" @click="closeModal">&times;</button>
+        <p>Разрешение от родителей/опекунов на волонтерство получено</p>
+        <div class="buttonsLayout">
+          <CustomButton :onClick="confirmPermission">Подтвердить</CustomButton>
+          <CustomButton :onClick="closeModal">Отмена</CustomButton>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
+import CustomTable from '../components/CustomTable.vue'
+import CustomButton from '../components/CustomButton.vue'
 
 const volunteers = ref([
   {
@@ -87,11 +93,54 @@ const volunteers = ref([
 
 const searchQuery = ref('')
 const filterMinors = ref(false)
+const modalVisible = ref(false)
+const currentVolunteer = ref(null)
+const columns = [
+  {
+    label: 'ФИО',
+    key: 'name'
+  },
+  {
+    label: 'Возраст',
+    key: 'age'
+  },
+  {
+    label: 'Направление',
+    key: 'directions'
+  },
+  {
+    label: 'Руководитель',
+    key: 'leader'
+  },
+  {
+    label: 'Мед. противопоказания',
+    key: 'medicalContraindications'
+  },
+  {
+    label: 'Разрешения',
+    key: 'allows'
+  }
+]
+const closeModal = () => (modalVisible.value = false)
+
+const isConfirmed = (volunteer) => {
+  return volunteer.allows === 'Получено'
+}
+const showModal = (volunteer) => {
+  currentVolunteer.value = volunteer
+  modalVisible.value = true
+}
+const confirmPermission = () => {
+  currentVolunteer.value.allows = 'Получено'
+  closeModal()
+}
 
 const filteredVolunteers = computed(() => {
   return volunteers.value.filter((volunteer) => {
-    const matchesName = volunteer.first_name.toLowerCase().includes(searchQuery.value.toLowerCase())
+    const fullName = volunteer.first_name.toLowerCase() + volunteer.last_name.toLowerCase()
+    const matchesName = fullName.includes(searchQuery.value.toLowerCase())
     const isMinor = !filterMinors.value || volunteer.age < 18
+
     return matchesName && isMinor
   })
 })
@@ -103,33 +152,40 @@ const filteredVolunteers = computed(() => {
   flex-direction: column;
   gap: 2rem;
 }
+
 .inputContainer {
   display: flex;
   justify-content: space-between;
   gap: 2rem;
 }
+
 .searchInput {
   flex: 1;
 }
+
 .labelContainer {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
+
 .checkbox {
   cursor: pointer;
   padding: 0.7rem;
 }
+
 input {
   padding: 1rem;
   border: none;
   box-shadow: 1px 1px 5px 1px gray;
   border-radius: 5px;
 }
+
 input[type='text']:focus {
   border: 3px solid #d3e4f6;
   outline: 0;
 }
+
 input[type='checkbox'] {
   border-radius: 5px;
   appearance: none;
@@ -142,6 +198,7 @@ input[type='checkbox']:checked::before {
   top: 50%;
   transform: translateY(-50%);
 }
+
 input[type='checkbox']:checked::after {
   content: '✓';
   position: absolute;
@@ -154,11 +211,13 @@ input[type='checkbox']:checked {
   position: relative;
   background-color: #d3e4f6;
 }
+
 table {
   width: 100%;
   border-collapse: collapse;
   box-shadow: 3px 3px 10px 3px gray;
 }
+
 th,
 td {
   padding: 1rem;
@@ -169,5 +228,42 @@ th {
   font-weight: 600;
   border-bottom: 1px solid gray;
   background-color: #d3e4f6;
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modalContent {
+  background: white;
+  padding: 1.7rem;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.closeButton {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  border-radius: 50%;
+  background-color: #d3e4f6;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.buttonsLayout {
+  display: flex;
+  justify-content: space-between;
 }
 </style>
